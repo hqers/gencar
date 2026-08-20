@@ -23,6 +23,10 @@ $isLoggedIn = !empty($_SESSION['user_id']);
 $isAdmin    = $isLoggedIn && (($_SESSION['role'] ?? '') === 'admin');
 $namaUser   = $_SESSION['nama'] ?? $_SESSION['username'] ?? '';
 
+// Cegah WebView app nyimpen halaman ini lama-lama — tanpa ini, klik reload
+// di app kadang masih nampilin versi lama (app gak baca update sampai cache expired)
+header('Cache-Control: no-cache, must-revalidate');
+
 function n($v) { return $v ?? 0; }
 function pct(?float $target, float $realisasi): ?float {
     return ($target !== null && $target > 0) ? round($realisasi / $target * 100, 1) : null;

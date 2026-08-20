@@ -20,6 +20,10 @@ $isLoggedIn = !empty($_SESSION['user_id']);
 $isAdmin    = $isLoggedIn && (($_SESSION['role'] ?? '') === 'admin');
 $namaUser   = $_SESSION['nama'] ?? $_SESSION['username'] ?? '';
 
+// Cegah WebView app nyimpen halaman ini lama-lama — tanpa ini, klik reload
+// di app kadang masih nampilin versi lama (app gak baca update sampai cache expired)
+header('Cache-Control: no-cache, must-revalidate');
+
 const SLS_TARGET_PER_PPL = 716; // target tetap per PPL (sesuai arahan)
 
 function n($v) { return $v ?? 0; }
