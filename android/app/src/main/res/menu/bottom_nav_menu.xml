@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_dashboard"
+        android:icon="@drawable/ic_dashboard"
+        android:title="@string/nav_dashboard"
+        android:checkable="true" />
+    <item
+        android:id="@+id/nav_rekap_ppl"
+        android:icon="@drawable/ic_rekap"
+        android:title="@string/nav_rekap_ppl"
+        android:checkable="true" />
+    <item
+        android:id="@+id/nav_wilayah"
+        android:icon="@drawable/ic_wilayah"
+        android:title="@string/nav_wilayah"
+        android:checkable="true" />
+</menu>

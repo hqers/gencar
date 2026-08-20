@@ -1,0 +1,134 @@
+<?php
+// ============================================================
+// config.php.example — Template konfigurasi SELARAS SE2026 (SQLite)
+// COPY file ini jadi "config.php" (buang ".example"), lalu:
+//   1. Ganti API_SECRET jadi string random panjang punya sendiri
+//   2. JANGAN commit config.php yang udah diisi ke Git (udah di-.gitignore)
+// ============================================================
+
+define('DB_PATH', __DIR__ . '/../gencar_data/gencar.db');
+define('BASE_URL', 'https://gencar.hqers.my.id');
+define('API_SECRET', 'GANTI_DENGAN_STRING_RANDOM_PANJANG');
+define('SESSION_NAME', 'selaras_sess');
+define('SESSION_LIFETIME', 3600 * 8);
+
+date_default_timezone_set('Asia/Jakarta');
+
+function getDB() {
+    static $pdo = null;
+    if ($pdo === null) {
+        $dbPath = DB_PATH;
+        $dbDir  = dirname($dbPath);
+        if (!is_dir($dbDir)) mkdir($dbDir, 0750, true);
+        try {
+            $pdo = new PDO('sqlite:' . $dbPath);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            $pdo->exec('PRAGMA journal_mode=WAL');
+            $pdo->exec('PRAGMA foreign_keys=ON');
+            initSchema($pdo);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            die(json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]));
+        }
+    }
+    return $pdo;
+}
+
+function initSchema($pdo) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, tanggal TEXT NOT NULL, email TEXT NOT NULL,
+            total INTEGER DEFAULT 0, open_count INTEGER DEFAULT 0, draft INTEGER DEFAULT 0,
+            submitted INTEGER DEFAULT 0, approved INTEGER DEFAULT 0, rejected INTEGER DEFAULT 0,
+            selesai INTEGER DEFAULT 0, progress_pct REAL DEFAULT 0.0, catatan TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime')), updated_at TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(tanggal, email)
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS mapping_nama (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE,
+            nama TEXT DEFAULT '', pml TEXT DEFAULT '', tampil INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS progress_wilayah (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, tanggal TEXT NOT NULL, email TEXT NOT NULL,
+            region_code TEXT NOT NULL, total INTEGER DEFAULT 0, open_count INTEGER DEFAULT 0,
+            draft INTEGER DEFAULT 0, submitted INTEGER DEFAULT 0, approved INTEGER DEFAULT 0,
+            rejected INTEGER DEFAULT 0, selesai INTEGER DEFAULT 0, catatan TEXT DEFAULT '',
+            updated_at TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(tanggal, email, region_code)
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_pw_tanggal ON progress_wilayah(tanggal)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_pw_region  ON progress_wilayah(region_code)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_pw_email   ON progress_wilayah(email)");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS import_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, tanggal TEXT NOT NULL, catatan TEXT DEFAULT '',
+            total_petugas INTEGER DEFAULT 0, inserted INTEGER DEFAULT 0, upserted INTEGER DEFAULT 0,
+            ip_address TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL,
+            nama TEXT DEFAULT '', role TEXT DEFAULT 'viewer' CHECK(role IN ('admin','viewer')),
+            last_login TEXT NULL, created_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS assignment (
+            id TEXT PRIMARY KEY, region_code TEXT NOT NULL, kode_kec TEXT, kode_desa TEXT, kode_sls TEXT,
+            status TEXT, email TEXT, sample_type INTEGER, data6 TEXT, latitude REAL, longitude REAL,
+            tanggal_ambil TEXT, updated_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+    ");
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_asgn_kec    ON assignment(kode_kec)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_asgn_email  ON assignment(email)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_asgn_status ON assignment(status)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_asgn_tgl    ON assignment(tanggal_ambil)');
+
+    // PENTING: ganti hash password ini setelah setup pertama! Ini cuma
+    // placeholder biar akun 'admin' selalu ada — gunakan reset_password_admin.php
+    // (di root web/) buat ganti passwordnya begitu server pertama kali jalan.
+    $pdo->exec("
+        INSERT OR IGNORE INTO users (username, password, nama, role)
+        VALUES ('admin', '\$2y\$10\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', 'admin')
+    ");
+}
+
+function jsonResponse($data, $code = 200) {
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function setCORSHeaders() {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, X-API-Secret');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+}
+
+function requireLogin() {
+    session_name(SESSION_NAME);
+    session_start();
+    if (empty($_SESSION['user_id'])) {
+        header('Location: ' . BASE_URL . '/auth/login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
+        exit;
+    }
+}
+
+function isLoggedIn() {
+    session_name(SESSION_NAME);
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    return !empty($_SESSION['user_id']);
+}

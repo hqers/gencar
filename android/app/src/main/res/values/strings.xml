@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">GENCAR</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_rekap_ppl">Rekap PPL</string>
+    <string name="nav_wilayah">Wilayah</string>
+    <string name="error_title">Gagal memuat halaman</string>
+    <string name="error_message">Cek koneksi internet kamu, terus coba lagi.</string>
+    <string name="error_retry">Coba Lagi</string>
+</resources>

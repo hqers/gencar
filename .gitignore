@@ -1,0 +1,20 @@
+# --- Web (PHP) ---
+web/config.php
+web/*.db
+web/*.db-*
+selaras_data/
+gencar_data/
+web/api/__pycache__/
+
+# --- Android ---
+android/*.iml
+android/.gradle
+android/local.properties
+android/.idea
+android/build/
+android/app/build/
+android/captures/
+android/.externalNativeBuild
+android/.cxx
+
+.DS_Store
